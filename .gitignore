@@ -1,2 +1,2 @@
 # Ignore large folders
-data/preprocessed_benchmark_event_logs/
+data/processed_benchmark_event_logs/
