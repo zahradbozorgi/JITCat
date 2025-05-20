@@ -23,11 +23,11 @@ class BPICProcessor(BaseProcessor):
         self.cat_types = {}
         
         self.case_id_col = dataset_confs.case_id_col[self.dataset_name]
-        # self.activity_col = dataset_confs.activity_col[self.dataset_name]
+        self.activity_col = dataset_confs.activity_col[self.dataset_name]
         self.timestamp_col = dataset_confs.timestamp_col[self.dataset_name]
         self.target_col = dataset_confs.target_col[self.dataset_name]
-        # self.label_col = dataset_confs.label_col[self.dataset_name]
-        # self.pos_label = dataset_confs.pos_label[self.dataset_name]
+        self.label_col = dataset_confs.label_col[self.dataset_name]
+        self.pos_label = dataset_confs.pos_label[self.dataset_name]
 
         self.dynamic_cat_cols = dataset_confs.dynamic_cat_cols[self.dataset_name]
         self.static_cat_cols = dataset_confs.static_cat_cols[self.dataset_name]
@@ -65,9 +65,22 @@ class BPICProcessor(BaseProcessor):
             unique_values = df[col].unique()
             self.cat_types[col] = CategoricalDtype(categories=unique_values, ordered=True)
 
+    def infer_categories_encoding(self, df):
+        self.object_columns = df.select_dtypes(include=['object']).columns
+        for col in self.object_columns:
+            unique_values = df[col].unique()
+            self.cat_types[col] = CategoricalDtype(categories=unique_values, ordered=True)
+
     def encode_categorical_columns(self, X):
         df = X.copy()
         for col in self.dynamic_cat_cols + self.static_cat_cols:
+            if col in self.cat_types:
+                df[col] = df[col].astype(self.cat_types[col]).cat.codes
+        return df
+    
+    def encode_categorical_columns_encoding(self, X):
+        df = X.copy()
+        for col in self.object_columns:
             if col in self.cat_types:
                 df[col] = df[col].astype(self.cat_types[col]).cat.codes
         return df
@@ -90,6 +103,26 @@ class BPICProcessor(BaseProcessor):
         cat_model.fit(X[self.dynamic_cat_cols+self.static_cat_cols])
 
         return num_model, cat_model
+    
+    def train_nn_model_bpic_encoding(self, df):
+        # Infer categories from the data
+        self.infer_categories_encoding(df)
+        # Encode categorical columns
+        X = self.encode_categorical_columns_encoding(df)
+        cat_model = NearestNeighbors(n_neighbors=self.num_nearest_neighbors, metric="hamming")
+
+        if isinstance(self.distance_metric, str):
+            num_model = NearestNeighbors(n_neighbors=self.num_nearest_neighbors, metric=self.distance_metric)
+        elif callable(self.distance_metric):
+            num_model = NearestNeighbors(n_neighbors=self.num_nearest_neighbors, metric=lambda x, y: self.distance_metric(x, y))
+        else:
+            raise ValueError("distance_metric should be either a string or a callable function")
+        
+        self.numeric_columns = df.select_dtypes(include=['int64', 'float64']).columns
+        num_model.fit(X[self.numeric_columns])
+        cat_model.fit(X[self.object_columns])
+
+        return num_model, cat_model
 
     def find_nearest_neighbors(self, cat_model, num_model, sample_point):
         sample_point = self.encode_categorical_columns(sample_point)
@@ -110,3 +143,23 @@ class BPICProcessor(BaseProcessor):
         # Return combined distances and indices
         return combined_distances, combined_indices
         
+
+    def find_nearest_neighbors_encoding(self, cat_model, num_model, sample_point):
+        sample_point = self.encode_categorical_columns_encoding(sample_point)
+        cat_distances, cat_indices = cat_model.kneighbors(sample_point[self.object_columns])
+        
+        # Find nearest neighbors for numerical features
+        
+        num_distances, num_indices = num_model.kneighbors(sample_point[self.numeric_columns])
+
+        # Normalize distances
+        cat_distances_normalized = cat_distances / np.max(cat_distances)
+        num_distances_normalized = num_distances / np.max(num_distances)
+        
+        # Combine distances
+        combined_distances = cat_distances_normalized + num_distances_normalized
+        # Find indices of the nearest neighbors based on combined distance
+        combined_indices = np.argsort(combined_distances, axis=1)
+        
+        # Return combined distances and indices
+        return combined_distances, combined_indices

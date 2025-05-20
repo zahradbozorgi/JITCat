@@ -4,7 +4,7 @@ from transformers.AggregateTransformer import AggregateTransformer
 # from transformers.IndexBasedTransformer import IndexBasedTransformer
         
 def get_encoder(method, case_id_col=None, static_cat_cols=None, static_num_cols=None, dynamic_cat_cols=None,
-                dynamic_num_cols=None, target_cols=None, work_day_col=None, fillna=True, max_events=None, activity_col=None, resource_col=None, timestamp_col=None,
+                dynamic_num_cols=None, fillna=True, max_events=None, activity_col=None, resource_col=None, timestamp_col=None,
                 scale_model=None):
 
     # if method == "static":
@@ -14,7 +14,7 @@ def get_encoder(method, case_id_col=None, static_cat_cols=None, static_num_cols=
     #     return LastStateTransformer(case_id_col=case_id_col, cat_cols=dynamic_cat_cols, num_cols=dynamic_num_cols, fillna=fillna)
 
     if method == "agg":
-        return AggregateTransformer(case_id_col=case_id_col, cat_cols=dynamic_cat_cols, num_cols=dynamic_num_cols, target_cols=target_cols, work_day_col=work_day_col, boolean=False, fillna=fillna)
+        return AggregateTransformer(case_id_col=case_id_col, cat_cols=dynamic_cat_cols, num_cols=dynamic_num_cols, boolean=False, fillna=fillna)
 
     # elif method == "bool":
     #     return AggregateTransformer(case_id_col=case_id_col, cat_cols=dynamic_cat_cols, num_cols=dynamic_num_cols, boolean=True, fillna=fillna)

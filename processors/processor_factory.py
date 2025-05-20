@@ -11,7 +11,7 @@ def get_processor(dataset_name, *args, **kwargs):
     elif dataset_name == 'AMBR':
         from processors.AMBRProcessor import AMBRProcessor
         return AMBRProcessor(dataset_name, *args, **kwargs)
-    elif dataset_name == 'bpic2011_f1':
+    elif dataset_name == 'bpic2011_f1' or dataset_name == 'sepsis_cases_1':
         from processors.BPICProcessor import BPICProcessor
         return BPICProcessor(dataset_name, *args, **kwargs)
     else:

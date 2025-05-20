@@ -6,13 +6,10 @@ import sys
 
 class AggregateTransformer(TransformerMixin):
     
-    def __init__(self, case_id_col, cat_cols, num_cols, target_cols, work_day_col, boolean=False, fillna=True):
+    def __init__(self, case_id_col, cat_cols, num_cols, boolean=False, fillna=True):
         self.case_id_col = case_id_col
         self.cat_cols = cat_cols
         self.num_cols = num_cols
-        self.target_cols = target_cols
-        self.work_day_col = work_day_col
-        print('Hello from AggregateTransformer 2')
         
         self.boolean = boolean
         self.fillna = fillna
@@ -31,16 +28,12 @@ class AggregateTransformer(TransformerMixin):
         
         # transform numeric cols
         if len(self.num_cols) > 0:
-            # dt_numeric = X.groupby(self.case_id_col)[self.num_cols].agg({'mean':np.mean, 'max':np.max, 'min':np.min, 'sum':np.sum, 'std':np.std})
-            agg_funcs = {col: ['mean', 'max', 'min', 'sum', 'std'] for col in self.num_cols}
-            dt_numeric = X.groupby(self.case_id_col).agg(agg_funcs)
+            dt_numeric = X.groupby(self.case_id_col)[self.num_cols].agg(['mean', 'max', 'min', 'sum', 'std'])
             dt_numeric.columns = ['_'.join(col).strip() for col in dt_numeric.columns.values]
             
         # transform cat cols
         dt_transformed = pd.get_dummies(X[self.cat_cols])
         dt_transformed[self.case_id_col] = X[self.case_id_col]
-        dt_transformed[self.target_cols] = X[self.target_cols]
-        dt_transformed[self.work_day_col] = X[self.work_day_col]
         del X
         if self.boolean:
             dt_transformed = dt_transformed.groupby(self.case_id_col).max()

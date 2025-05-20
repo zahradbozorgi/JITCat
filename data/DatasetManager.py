@@ -13,12 +13,12 @@ class DatasetManager:
         self.dataset_name = dataset_name
         
         self.case_id_col = dataset_confs.case_id_col[self.dataset_name]
-        # self.activity_col = dataset_confs.activity_col[self.dataset_name]
+        self.activity_col = dataset_confs.activity_col[self.dataset_name]
         # self.work_day_col = dataset_confs.work_day_col[self.dataset_name]
         self.timestamp_col = dataset_confs.timestamp_col[self.dataset_name]
         self.target_col = dataset_confs.target_col[self.dataset_name]
-        # self.label_col = dataset_confs.label_col[self.dataset_name]
-        # self.pos_label = dataset_confs.pos_label[self.dataset_name]
+        self.label_col = dataset_confs.label_col[self.dataset_name]
+        self.pos_label = dataset_confs.pos_label[self.dataset_name]
 
         self.dynamic_cat_cols = dataset_confs.dynamic_cat_cols[self.dataset_name]
         self.static_cat_cols = dataset_confs.static_cat_cols[self.dataset_name]
@@ -101,12 +101,13 @@ class DatasetManager:
 
     def generate_prefix_data(self, data, min_length, max_length, gap=1):
         # generate prefix data (each possible prefix becomes a trace)
-        data['case_length'] = data.groupby(self.case_id_col)[self.dynamic_cat_cols].transform(len)
+        print(self.activity_col)
+        data['case_length'] = data.groupby(self.case_id_col)[self.activity_col].transform(len)
 
-        data['Target'] = data.groupby(self.case_id_col)[self.target_col].shift(-1)
-        data['Target_orig'] = data.groupby(self.case_id_col)['Titer (g/L) original'].shift(-1)
-        data['Target'] = data.groupby(self.case_id_col)['Target'].ffill().bfill()
-        data['Target_orig'] = data.groupby(self.case_id_col)['Target_orig'].ffill().bfill()
+        #data['Target'] = data.groupby(self.case_id_col)[self.target_col].shift(-1)
+        #data['Target_orig'] = data.groupby(self.case_id_col)['Titer (g/L) original'].shift(-1)
+        #data['Target'] = data.groupby(self.case_id_col)['Target'].ffill().bfill()
+        #data['Target_orig'] = data.groupby(self.case_id_col)['Target_orig'].ffill().bfill()
 
         dt_prefixes = data[data['case_length'] >= min_length].groupby(self.case_id_col).head(min_length)
         dt_prefixes["prefix_nr"] = 1
