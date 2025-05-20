@@ -70,4 +70,30 @@ for dataset in datasets:
     dynamic_num_cols[dataset] = ['CRP', 'LacticAcid', 'Leucocytes', "hour", "weekday", "month", "timesincemidnight", "timesincelastevent", "timesincecasestart", "event_nr", "open_cases"]
     static_num_cols[dataset] = ['Age']
 
+
+#### BPIC2012 settings ####
+bpic2012_dict = {"bpic2012_cancelled": "bpic2012_O_CANCELLED-COMPLETE.csv",
+                 "bpic2012_accepted": "bpic2012_O_ACCEPTED-COMPLETE.csv",
+                 "bpic2012_declined": "bpic2012_O_DECLINED-COMPLETE.csv"
+                }
+
+for dataset, fname in bpic2012_dict.items():
+
+    filename[dataset] = os.path.join(logs_dir, fname)
+
+    case_id_col[dataset] = "Case ID"
+    activity_col[dataset] = "Activity"
+    resource_col[dataset] = "Resource"
+    timestamp_col[dataset] = "Complete Timestamp"
+    label_col[dataset] = "label"
+    neg_label[dataset] = "regular"
+    pos_label[dataset] = "deviant"
+    target_col[dataset] = "label"
+
+    # features for classifier
+    dynamic_cat_cols[dataset] = ["Activity", "Resource"]
+    static_cat_cols[dataset] = []
+    dynamic_num_cols[dataset] = ["hour", "weekday", "month", "timesincemidnight", "timesincelastevent", "timesincecasestart", "event_nr", "open_cases"]
+    static_num_cols[dataset] = ['AMOUNT_REQ']
+
  
