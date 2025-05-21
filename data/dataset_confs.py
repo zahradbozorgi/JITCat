@@ -17,7 +17,7 @@ dynamic_num_cols = {}
 static_num_cols = {}
 filename = {}
 
-logs_dir = "labeled_logs_csv_processed"
+logs_dir = "data/processed_benchmark_event_logs"
 
 
 #### BPIC2011 settings ####
