@@ -21,6 +21,7 @@ import argparse
 
 # In[2]:
 
+overall_start_time = time.time()
 
 from catboost import CatBoostClassifier
 import sklearn 
@@ -224,7 +225,7 @@ def save_results_to_csv(dataset_name, proposed_metrics, baseline_metrics, file_p
         existing_data = pd.read_csv(file_path)
         # Check if the dataset already exists in the file
         if dataset_name in existing_data['dataset_name'].values:
-            print(f"Dataset '{dataset_name}' already exists in the results file. Updating the row.")
+            print(f"Dataset '{dataset_name}' already exists in the results file. Updating the row.", flush=True)
 
             # Remove the existing row with the same dataset_name
             existing_data = existing_data[existing_data['dataset_name'] != dataset_name]
@@ -281,8 +282,8 @@ args = parser.parse_args()
 dataset_name = args.dataset_name
 test_mode = args.test_mode
 
-print(f"Processing dataset: {dataset_name}")
-print(f"Test mode: {test_mode}")
+print(f"Processing dataset: {dataset_name}", flush=True)
+print(f"Test mode: {test_mode}", flush=True)
 
 
 # In[15]:
@@ -352,7 +353,7 @@ else:
 
 
 start_test_prefix_generation = time.time()
-print("Generating prefix data...")
+print("Generating prefix data...", flush=True)
 dt_prefixes = dataset_manager.generate_prefix_data(filtered_df, min_prefix_length, max_prefix_length)
 test_prefix_generation_time = time.time() - start_test_prefix_generation
 
@@ -415,9 +416,9 @@ for col in object_columns:
 start = time.time()
 # Generate all combinations of hyperparameters
 param_grid = {
-    'num_nearest_neighbors': [100],
+    'num_nearest_neighbors': [50, 70, 100, 300, 500],
     'distance_metric': ['euclidean'],
-    'encoding_method': ['catboost', 'count', 'onehot', 'target', 'woe', 'rank'],
+    'encoding_method': ['catboost', 'target', 'woe', 'rank'],
     'model': ['Catboost'],
     'batch_size': [100]  # Added batch size as a hyperparameter
 }
@@ -427,7 +428,7 @@ param_keys = list(param_grid.keys())
 # Convert combinations to dictionaries
 param_dicts = [dict(zip(param_keys, values)) for values in param_combinations]
 end = time.time()
-print(f"Parameter grid established in {end - start:.2f} seconds.")
+print(f"Parameter grid established in {end - start:.2f} seconds.", flush=True)
 
 # Preprocess data once
 start = time.time()
@@ -445,7 +446,7 @@ features_used = historic.columns.difference(
     sort=False
 )
 end = time.time()
-print(f"Data preprocessing completed in {end - start:.2f} seconds.")
+print(f"Data preprocessing completed in {end - start:.2f} seconds.", flush=True)
 
 
 # In[31]:
@@ -455,14 +456,14 @@ print(f"Data preprocessing completed in {end - start:.2f} seconds.")
 
 results_baseline = pd.DataFrame()
 method = 'Catboost'
-print(f"Experimenting with baseline version")
+print(f"Experimenting with baseline version", flush=True)
 
 target = historic[dataset_manager.label_col].values
 target_test = current[dataset_manager.label_col]
 
 start_time = time.time()
 if method == 'Catboost':
-        model = CatBoostClassifier(iterations=100, loss_function='Logloss', eval_metric='AUC', verbose=0, cat_features=[dataset_manager.activity_col]+dataset_manager.static_cat_cols, random_seed=321)
+        model = CatBoostClassifier(iterations=100, loss_function='Logloss', eval_metric='AUC', verbose=0, cat_features=[dataset_manager.activity_col]+dataset_manager.static_cat_cols, task_type='CPU', random_seed=321)
         print('Now training')
         model.fit(historic[features_used], target, cat_features=[dataset_manager.activity_col]+dataset_manager.static_cat_cols)
 
@@ -509,15 +510,15 @@ predicted_values = results_baseline['predicted_value']
 accuracy = np.mean(true_values == predicted_values)
 
 # Print metrics
-print(f"Accuracy: {accuracy}")
-print(f"f1_score: {f1_score(true_values, predicted_values, average='weighted')}")
-print(f"Training Time: {training_time}")
-print(f"AUC: {auc}")
+print(f"Accuracy: {accuracy}", flush=True)
+print(f"f1_score: {f1_score(true_values, predicted_values, average='weighted')}", flush=True)
+print(f"Training Time: {training_time}", flush=True)
+print(f"AUC: {auc}", flush=True)
 
 output_dir = Path(f"results_HP_tuning/{dataset_name}")
 output_dir.mkdir(parents=True, exist_ok=True)
 results_baseline.to_csv(f'{output_dir}/baseline_{method}.csv', index=False)
-print('***********************************')
+print('***********************************', flush=True)
 
 # Calculate metrics for baseline method
 baseline_metrics = calculate_metrics(results_baseline, dataset_manager)
@@ -546,7 +547,7 @@ dataset_manager_data = {
     'static_cat_cols': dataset_manager.static_cat_cols
 }
 end = time.time()
-print("Preprocessed data ready for parallel processing in {:.2f} seconds.".format(end - start))
+print("Preprocessed data ready for parallel processing in {:.2f} seconds.".format(end - start), flush=True)
 
 
 # In[34]:
@@ -558,7 +559,7 @@ def process_combination(params, preprocessed_data, dataset_manager_data):
     AUCs = []
     results_df = pd.DataFrame()
     results_dicts = []
-    print(f"Testing combination: {params}")
+    print(f"Testing combination: {params}", flush=True)
 
     # Extract preprocessed data
     historic = pd.DataFrame(preprocessed_data['historic'])
@@ -622,7 +623,8 @@ def process_combination(params, preprocessed_data, dataset_manager_data):
     # Process batches
     for start in range(0, len(current), batch_size):  # Batch size = 100
         batch = current.iloc[start:start+batch_size]
-        distances, indices = nn_model.kneighbors(current_transformed[start:start+batch_size])
+        batch_transformed = preprocessor.transform(batch[features_used])
+        distances, indices = nn_model.kneighbors(batch_transformed)
         nearest_neighbors = pd.concat([historic.iloc[indices[i]] for i in range(len(batch))])
 
         target = nearest_neighbors[dataset_manager_data['label_col']].values
@@ -632,7 +634,7 @@ def process_combination(params, preprocessed_data, dataset_manager_data):
 
         # Train model
         if params['model'] == 'Catboost':
-            model = CatBoostClassifier(iterations=100, loss_function='Logloss', eval_metric='AUC', verbose=0, cat_features=[dataset_manager_data['activity_col']]+dataset_manager_data['static_cat_cols'],random_seed=42)
+            model = CatBoostClassifier(iterations=100, loss_function='Logloss', eval_metric='AUC', verbose=0, cat_features=[dataset_manager_data['activity_col']]+dataset_manager_data['static_cat_cols'], task_type='CPU', random_seed=42)
             model.fit(X_train[features_used], y_train, cat_features=[dataset_manager_data['activity_col']]+dataset_manager_data['static_cat_cols'])
         elif params['model'] == 'LogisticRegression':
             model = make_pipeline(preprocessor, LogisticRegression())
@@ -700,7 +702,7 @@ def process_combination(params, preprocessed_data, dataset_manager_data):
         'recall': recall,
     })
     end_time = time.time()
-    print(f"Combination processed in {(end_time - start_time) / 60:.2f} minutes.")
+    print(f"Combination processed in {(end_time - start_time) / 60:.2f} minutes.", flush=True)
 
     return results_dicts, results_df
 
@@ -717,7 +719,8 @@ for params in param_dicts:
 
 # Flatten results and save
 results_all_df = pd.DataFrame(all_results)
-results_all_df.to_csv('grid_search_results.csv', index=False)
+gridsearch_output_dir = Path(f"results_HP_tuning/{dataset_name}")
+results_all_df.to_csv(f'{gridsearch_output_dir}/grid_search_results.csv', index=False)
 
 # Print the best combination
 best_result = results_all_df.loc[results_all_df['f1_score'].idxmax()]
@@ -727,7 +730,7 @@ best_result = results_all_df.loc[results_all_df['f1_score'].idxmax()]
 
 
 # print(f"Best combination: {best_result}")
-print(best_result['params'])
+print(best_result['params'], flush=True)
 
 
 # In[36]:
@@ -738,7 +741,7 @@ print(best_result['params'])
 
 
 # Calculate metrics and save for best combo
-best = pd.read_csv(f"{output_dir}/{best_result["params"]}.csv")
+best = pd.read_csv(f"{output_dir}/{best_result['params']}.csv")
 proposed_metrics = calculate_metrics(best, dataset_manager)
 save_results_to_csv(f'{dataset_name}', proposed_metrics, baseline_metrics)
 
@@ -749,7 +752,7 @@ save_results_to_csv(f'{dataset_name}', proposed_metrics, baseline_metrics)
 tmp = pd.read_csv(f'{output_dir}/baseline_{method}.csv')
 tmp.sort_values([dataset_manager.timestamp_col], ascending=True, kind='mergesort', inplace=True)
 
-tmp2 = pd.read_csv(f"{output_dir}/{best_result["params"]}.csv")
+tmp2 = pd.read_csv(f"{output_dir}/{best_result['params']}.csv")
 tmp2.sort_values([dataset_manager.timestamp_col], ascending=True, kind='mergesort', inplace=True)
 
 # Calculate moving average accuracy for tmp and tmp2
@@ -772,11 +775,14 @@ plt.title(f'{dataset_name} Moving Average Accuracy')
 plt.legend()
 plt.grid(True)
 # plt.show()
-plt.savefig(f"results_HP_tuning/{dataset_name}/moving_avg_accuracy_score.png", dpi=600, bbox_inches='tight')
-plt.savefig(f"results_HP_tuning/{dataset_name}/moving_avg_accuracy_score.pdf", dpi=600, bbox_inches='tight', format="pdf")  # Save as PDF
+plt.savefig(f'results_HP_tuning/{dataset_name}/moving_avg_accuracy_score.png', dpi=600, bbox_inches='tight')
+plt.savefig(f'results_HP_tuning/{dataset_name}/moving_avg_accuracy_score.pdf', dpi=600, bbox_inches='tight', format='pdf')  # Save as PDF
 
 plt.close()
 
+
+overall_end_time = time.time()
+print(f"Overall execution time: {(overall_end_time - overall_start_time) / 60:.2f} minutes", flush=True)
 
 # In[40]:
 
@@ -793,8 +799,8 @@ plt.close()
 # plt.legend()
 # plt.grid(True)
 # # plt.show()
-# plt.savefig(f"results/{dataset_name}/moving_avg_f1_score.png", dpi=600, bbox_inches='tight')
-# plt.savefig(f"results/{dataset_name}/moving_avg_F1_score.pdf", dpi=600, bbox_inches='tight', format="pdf")  # Save as PDF
+# plt.savefig(f'results/{dataset_name}/moving_avg_f1_score.png', dpi=600, bbox_inches='tight')
+# plt.savefig(f'results/{dataset_name}/moving_avg_F1_score.pdf', dpi=600, bbox_inches='tight', format="pdf")  # Save as PDF
 # plt.close()
 
 
