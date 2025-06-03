@@ -1,0 +1,3 @@
+params,auc,accuracy,f1_score,precision,recall
+"{'num_nearest_neighbors': 100, 'distance_metric': 'euclidean', 'encoding_method': 'woe', 'model': 'Catboost', 'batch_size': 100}",0.6372652610371269,0.47363796133567665,0.3972611112216929,0.518153066095504,0.47363796133567665
+"{'num_nearest_neighbors': 100, 'distance_metric': 'cosine', 'encoding_method': 'woe', 'model': 'Catboost', 'batch_size': 100}",0.6372652610371269,0.47363796133567665,0.3972611112216929,0.518153066095504,0.47363796133567665

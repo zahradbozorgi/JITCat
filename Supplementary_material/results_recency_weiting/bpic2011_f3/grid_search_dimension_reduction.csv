@@ -1,0 +1,2 @@
+params,auc,accuracy,f1_score,precision,recall
+"{'num_nearest_neighbors': 1000, 'distance_metric': 'euclidean', 'encoding_method': 'quantile', 'model': 'Catboost', 'batch_size': 100}",0.922226830585623,0.8607188078309146,0.8643349886017734,0.8726342357369198,0.8607188078309146
